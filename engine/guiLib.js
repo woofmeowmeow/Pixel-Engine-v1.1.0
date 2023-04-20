@@ -62,7 +62,6 @@ let TextButton = function(vector2,vector2Size,fn){
 ***************************************************/
 
 let Frame = function(vector2Pos,vector2Size,imagePath){
-    this.c     = "grey";
     this.vector2Pos  = vector2Pos;
     this.vector2Size = vector2Size;
     this.imagePath = imagePath;
@@ -70,6 +69,7 @@ let Frame = function(vector2Pos,vector2Size,imagePath){
     this.y = vector2Pos.y;
     this.w = vector2Size.x;
     this.h = vector2Size.y;
+    this.c = "grey";
 
     this.draw = function(){
         if(imagePath){

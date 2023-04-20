@@ -1,15 +1,57 @@
-const game = document.createElement("canvas"), gfx = game.getContext("2d");
+/////////////////////////////////////////////////////// canvas rendering context 2d
+///////////////////////////////////////////////////////
+const game = document.createElement("canvas"), 
+      gfx  = game.getContext("2d");
 
     game.id   = "game_window";
     let gameW = game.width, 
         gameH = game.height;
     let body  = document.getElementsByTagName("body")[0];
-    body.appendChild(game);
 
+/////////////////////////////////////////////////////// canvas rendering context webgl
+///////////////////////////////////////////////////////
+const WGL_CANVAS = document.createElement("canvas");
+let wgl = WGL_CANVAS.getContext("webgl");
+    
+if(wgl === null){ 
+    // for IE, Edge and Safari
+    alert("your browser does not support webgl. now trying webgl experimental...");
+    wgl = WGL_CANVAS.getContext("experimental-webgl");
+}
+
+    WGL_CANVAS.id   = "webgl_window";
+    let wglW = WGL_CANVAS.width, 
+        wglH = WGL_CANVAS.height;
+
+///////////////////////////////////////////////////////
+///////////////////////////////////////////////////////
+
+// append canvas element to the document body.
+// the type can be "2d" or "webgl".
+function AppendCanvas(type){
+    if(type === "2d"){
+        body.appendChild(game);
+    }
+
+    if(type === "webgl"){
+        body.appendChild(WGL_CANVAS);
+    }
+}
+
+// global variables for the physics engine and other stuff 
     const delta_time        = 0.008;            // 0.005 years is equal to 1.825 days
     const softeningConstant = 0.15;
     const g_constant        = 6.673*(10**-11);
     let   workspace         = [];               // workspace stores all entitys in your game
+
+// mouseX and mouseY coordinates
+let mouseX = undefined;
+let mouseY = undefined;
+    
+window.addEventListener('mousemove', (event) => {
+    mouseX = event.clientX, 
+    mouseY = event.clientY;
+});
 
 /******************************
  * canvas background color
@@ -29,11 +71,40 @@ let Background = function(color,type){
     }
 };
 
+/******************************
+ * canvas window size for 2d
+******************************/
+
 let GameSize = function(w,h){
     game.width  = w;
     game.height = h;
     gameW = game.width;
     gameH = game.height;
+};
+
+/******************************
+ * canvas background color
+ * for webgl
+ * param_1: color or url
+ * param_2: "Image" or nothing
+******************************/
+
+let WebglBackground = function(color,type){
+    if(!type){
+        wgl.clearColor(color);
+        wgl.clear(wgl.COLOR_BUFFER_BIT | wgl.DEPTH_BUFFER_BIT);
+    }else{}
+};
+
+/*******************************
+ * canvas window size for webgl
+*******************************/
+
+let GameSizeWebgl = function(w,h){
+    WGL_CANVAS.width  = w;
+    WGL_CANVAS.height = h;
+    wglW = WGL_CANVAS.width;
+    wglH = WGL_CANVAS.height;
 };
 
 /******************************
@@ -159,7 +230,6 @@ function lineToAngle(gfx,x1,y1,length,angle){
 function convertToRadians(degree) {
     return degree*(Math.PI/180);
 }
-
 
 /******************************************************
  * returns the distance between two entitys
@@ -508,7 +578,7 @@ let Duplicate = function(ent){
 /************************************************************
  * (Ray and Boundary are workspace objects)
  * Example:
- *     let b =  new Boundary(x,y,w,h);
+ *     let b =  new Boundary(x1,y1,x2,y2);
  *     b.c = "orange";
  *     b.render();
 ************************************************************/
@@ -517,7 +587,7 @@ function Boundary(x1,y1,x2,y2){
     workspace.push(this);
     this.a     = new vector2(x1,y1);
     this.b     = new vector2(x2,y2);
-    this.c = "white"
+    this.c     = "white"
 
     this.render = function(){
         gfx.beginPath();
@@ -531,15 +601,38 @@ function Boundary(x1,y1,x2,y2){
 /************************************************************
  * Ray class (Ray and Boundary are workspace objects)
  * Example:
- *     let ray =  new Ray(100,200,1,0,"yellow");
- *     let b =  new Boundary(300,100,300,300,"white");
- * 
- *     for(let i in workspace){
-         workspace[i].render();
-       }
+//////////////////////////////////////////////
+//            GLOBAL VARS/FUNCS             //
+//////////////////////////////////////////////
+const ray  = new Ray(100, 200, 1, 0);
+const wall = new Boundary(300, 100, 300, 300);
 
-       let pt = ray.cast(b);
-       console.log(pt);
+let pp = new vector2(0, 0),
+    ps = new vector2(3, 3),
+    pv = new vector2(0, 0),
+    pa = new vector2(0, 0),
+    pg = new vector2(0, 0);
+
+const point = new Entity(pp, ps, pv, pa, pg, "circle");
+point.c     = rgba(150, 50, 50, 1.0);
+//////////////////////////////////////////////
+//                GAME LOOP                 //
+//////////////////////////////////////////////
+window.onload = new RecurringTimer(function(){
+    Background("Black");
+    wall.render();
+    ray.render();
+    ray.setDirection(mouseX, mouseY);
+
+    let pt = ray.cast(wall);
+
+    if(pt){
+        point.x = pt.x;
+        point.y = pt.y;
+
+        point.render();
+    }else{ return }
+}, 0);
 ************************************************************/
 
 function Ray(x,y,d1,d2){
@@ -558,18 +651,20 @@ function Ray(x,y,d1,d2){
     }
 
     this.render = function(){
+        gfx.save();
+        gfx.translate(this.pos.x,this.pos.y);
         gfx.beginPath();
         gfx.moveTo(0,0)
         gfx.lineTo(this.dir.x * 10,this.dir.y * 10);
-        gfx.translate(this.pos.x,this.pos.y);
         gfx.strokeStyle = this.c;
         gfx.stroke();
+        gfx.restore();
     };
 
     this.cast = function(boundary){
         const x1 = boundary.a.x;
         const y1 = boundary.a.y;
-        const x2 = boundary.b.x;
+        const x2 = boundary.b.y;
         const y2 = boundary.b.y;
 
         const x3 = this.pos.x;
@@ -587,20 +682,26 @@ function Ray(x,y,d1,d2){
         const u = -((x1 - x2) * (y1 - y3) - (y1 - y2) * (x1 - x3)) / den;
 
         if(t > 0 && t < 1 && u > 0){
-            const pt = new vector2();
+            let pt = new vector2(0,0);
+
             pt.x = x1 + t * (x2 - x1);
             pt.y = y1 + t * (y2 - y1);
+
             return pt;
-        }else{return}
+        }else{
+            return;
+        }
 
     };
 }
 
 /************************************************
- * a basic function to create a rectangle object
+ * a basic function to create a rectangle.
 ************************************************/
 
 let Rect = function(p,s,c){
+    workspace.push(this);
+    
     this.p = new vector2(0,0);
     this.s = new vector2(10,10);
     this.x = p.x;
@@ -609,14 +710,17 @@ let Rect = function(p,s,c){
     this.h = s.y;
     this.c = c;
     
-    this.draw = function(){
-    		gfx.fillStyle = c;
-    		gfx.fillRect(this.x,this.y,this.w,this.h);
+    this.render = function(){
+    	gfx.fillStyle = c;
+    	gfx.fillRect(this.x,this.y,this.w,this.h);
     }
     
-    this.erase = function(){
-    		gfx.fillStyle = rgba(255,255,255,0.0);
-    		gfx.clearRect(this.x,this.y,this.w,this.h);
+    this.destroy = function(){
+        let index = workspace.indexOf(this);
+        workspace.splice(index,1);
+
+    	gfx.fillStyle = rgba(255,255,255,0.0);
+    	gfx.clearRect(this.x,this.y,this.w,this.h);
     }
 }
 
