@@ -1,9 +1,4 @@
-// This is a basic example of using the ray casting functions in PE.js.
-// Here I use the boundary class to draw lines because it is made to 
-// pair with the ray class. You should use the Entity class for anything
-// else. The Entity class has a lot of functionality and is the 
-// most important class in PE. I used it to draw the "point" in 
-// this example.
+// This is a basic example of using the ray casting function
 
 //////////////////////////////////////////////
 HTML
